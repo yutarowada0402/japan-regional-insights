@@ -1,6 +1,6 @@
 # Japan Regional Insights
 
-e-Statの公開統計をDuckDBに取り込み、都道府県別人口・高齢化・地域差を探索するStreamlit MVPです。取得値をダミーで補完しません。統計表IDとAPIキーが未設定、またはAPIに対象指標がなければ、該当値は表示されません。
+e-Statの公開統計をDuckDBに取り込み、都道府県別人口・高齢化・地域差を探索するStreamlit MVPです。地図上で高齢化率・人口を切り替え、都道府県ごとの値と比較推移を確認できます。取得値をダミーで補完しません。
 
 ## セットアップ
 
@@ -19,6 +19,8 @@ e-Stat API v3 JSON -> data/bronze/*.json (原応答)
                    -> gold_regional_metrics (都道府県×年次の分析テーブル)
                    -> Streamlit / Plotly
 ```
+
+都道府県境界は国土数値情報（行政区域データ、国土交通省）由来の47都道府県GeoJSONを同梱しています。属性対応は都道府県コード、座標精度は描画用に小数点以下4桁へ丸めています。出典・利用条件は[国土数値情報 行政区域データ](https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html)をご確認ください。
 
 ETLは`src/japan_regional_insights/etl.py`、dbtのGoldモデルは`models/`にあります。各レコードに統計表ID、出典、単位、取得時刻を保持します。e-Stat API v3.0は`/rest/3.0/app/json/getStatsData`にGETで`appId`と`statsDataId`を渡す方式です（[公式仕様](https://www.e-stat.go.jp/api/api-info/e-stat-manual3-0)）。
 
