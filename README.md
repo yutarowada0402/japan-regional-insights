@@ -6,7 +6,7 @@ e-Statの公開統計をDuckDBに取り込み、都道府県別人口・高齢�
 
 1. Python 3.11以上を用意し、`python -m venv .venv && source .venv/bin/activate && pip install -e .[dev]` を実行します。
 2. e-Stat API利用登録を行い、アプリケーションIDを取得します（[API利用ガイド](https://www.e-stat.go.jp/api/api-dev/how_to_use)）。`.env.example`を`.env`にコピーし、`ESTAT_APP_ID`を設定します。
-3. 統計表IDを確認して設定します。既定値は人口推計表の候補 `0003448239` です。年齢階級や対象年を含むか、e-Statの統計表情報取得APIとメタ情報で必ず確認してください。高齢化率は人口総数と65歳以上人口が同一表・同一地域年次で取得できる場合のみ算出可能です。現在のMVPはAPIの`value`をそのまま保持するため、高齢化率用の年齢階級集計式は統計表ごとに設定が必要です。未確認の表から算出値を捏造しません。
+3. 統計表IDを確認して設定します。既定値は人口推計表の候補 `0003448239` です。年齢階級や対象年を含むか、e-Statの統計表情報取得APIとメタ情報で必ず確認してください。高齢化率は人口総数と65歳以上人口が同一表・同一地域年次で取得できる場合のみ算出可能です。MVPは高齢化率表を自動選定せず、`ESTAT_AGING_STATS_ID`には公表値が「率」であることを確認した別の統計表IDのみ指定します。人口総数表の値を高齢化率として誤表示しません。
 4. `set -a; source .env; set +a; python -m japan_regional_insights.etl` で実データを取得します。
 5. `streamlit run app.py` でダッシュボードを起動します。
 

@@ -79,8 +79,12 @@ def ingest(app_id: str | None = None, database: str | Path = "data/regional_insi
     db.parent.mkdir(parents=True, exist_ok=True)
     bronze = db.parent / "bronze"
     bronze.mkdir(parents=True, exist_ok=True)
-    configs = [("population", os.getenv("ESTAT_POPULATION_STATS_ID", "0003448239")),
-               ("aging_rate", os.getenv("ESTAT_AGING_STATS_ID", "0003448239"))]
+    configs = [("population", os.getenv("ESTAT_POPULATION_STATS_ID", "0003448239"))]
+    aging_stats_id = os.getenv("ESTAT_AGING_STATS_ID", "").strip()
+    if aging_stats_id:
+        if aging_stats_id == configs[0][1]:
+            raise ValueError("ESTAT_AGING_STATS_ID must identify a verified rate table, not the population table.")
+        configs.append(("aging_rate", aging_stats_id))
     rows: list[dict[str, Any]] = []
     for indicator, stats_id in configs:
         payload = fetch_table(stats_id, app_id)
