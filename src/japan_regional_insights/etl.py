@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import duckdb
+import pandas as pd
 import requests
 
 API_URL = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"
@@ -37,36 +39,68 @@ def _records(payload: dict[str, Any]) -> list[dict[str, Any]]:
 def _flatten(payload: dict[str, Any], indicator: str) -> list[dict[str, Any]]:
     root = payload["GET_STATS_DATA"]["STATISTICAL_DATA"]
     class_map: dict[str, dict[str, str]] = {}
+    class_names: dict[str, dict[str, str]] = {}
     for category in root.get("CLASS_INF", {}).get("CLASS_OBJ", []):
         classes = category.get("CLASS", [])
         if isinstance(classes, dict):
             classes = [classes]
         class_map[category["@id"]] = {item["@code"]: item.get("@name", item["@code"]) for item in classes}
+        class_names[category["@id"]] = {item.get("@code", ""): item.get("@name", "") for item in classes}
     rows = []
+    population: dict[tuple[str, int], dict[str, Any]] = {}
+    table = root.get("TABLE_INF", {})
+    source_updated_date = str(table.get("UPDATED_DATE", ""))
     for value in _records(payload):
         area_code = str(value.get("@area", ""))
         area = class_map.get("area", {}).get(area_code, "")
         # e-Stat's area codes use five digits; exclude the national aggregate.
         if len(area_code) != 5 or not area_code.isdigit() or area_code == "00000":
             continue
-        time_code = str(value.get("@ time", value.get("@time", "")))
-        year = "".join(ch for ch in time_code if ch.isdigit())[:4]
+        time_code = str(value.get("@time", ""))
+        time_name = class_names.get("time", {}).get(time_code, "")
+        year_text = re.search(r"\d{4}", time_name)
+        if not year_text:
+            continue
+        year = int(year_text.group())
+        # Table 0003448225 publishes population by sex, age group and population type.
+        # Use total sex (000), total population (001), and the total age group (000).
+        if value.get("@cat01") != "000" or value.get("@cat03") != "001":
+            continue
         raw = value.get("$", "")
         try:
             number = float(raw.replace(",", ""))
         except (ValueError, AttributeError):
             number = None
-        rows.append({
+        row = {
             "prefecture_code": area_code,
             "prefecture": area,
-            "year": int(year) if len(year) == 4 else None,
-            "indicator": indicator,
+            "year": year,
             "value": number,
             "unit": value.get("@unit", ""),
             "source": SOURCE,
             "stats_data_id": payload["GET_STATS_DATA"].get("PARAMETER", {}).get("STATS_DATA_ID", ""),
+            "source_updated_date": source_updated_date,
             "updated_at": datetime.now(UTC).isoformat(),
-        })
+        }
+        age_code = str(value.get("@cat02", ""))
+        key = (area_code, year)
+        if age_code == "000":
+            prior = population.get(key, {})
+            population[key] = {**prior, **row, "indicator": "population"}
+        elif age_code == "003":
+            population.setdefault(key, {})["elderly"] = row
+    for values in population.values():
+        total = values.get("value")
+        elderly = values.get("elderly")
+        if total is not None:
+            rows.append({key: value for key, value in values.items() if key != "elderly"})
+        if elderly and elderly.get("value") is not None and total:
+            rows.append({
+                **{key: elderly[key] for key in ("prefecture_code", "prefecture", "year", "source", "stats_data_id", "updated_at")},
+                "indicator": "aging_rate",
+                "value": elderly["value"] / total * 100,
+                "unit": "%",
+            })
     return rows
 
 
@@ -79,12 +113,9 @@ def ingest(app_id: str | None = None, database: str | Path = "data/regional_insi
     db.parent.mkdir(parents=True, exist_ok=True)
     bronze = db.parent / "bronze"
     bronze.mkdir(parents=True, exist_ok=True)
-    configs = [("population", os.getenv("ESTAT_POPULATION_STATS_ID", "0003448239"))]
-    aging_stats_id = os.getenv("ESTAT_AGING_STATS_ID", "").strip()
-    if aging_stats_id:
-        if aging_stats_id == configs[0][1]:
-            raise ValueError("ESTAT_AGING_STATS_ID must identify a verified rate table, not the population table.")
-        configs.append(("aging_rate", aging_stats_id))
+    # This table contains total population and 65+ population, so both metrics
+    # are derived together from verified dimensions and use one source record.
+    configs = [("population", os.getenv("ESTAT_POPULATION_STATS_ID", "0003448225"))]
     rows: list[dict[str, Any]] = []
     for indicator, stats_id in configs:
         payload = fetch_table(stats_id, app_id)
@@ -94,7 +125,7 @@ def ingest(app_id: str | None = None, database: str | Path = "data/regional_insi
     if not rows:
         raise RuntimeError("e-Stat returned no prefectural observations. Check table ID and metadata.")
     con = duckdb.connect(str(db))
-    con.register("incoming", rows)
+    con.register("incoming", pd.DataFrame(rows))
     con.execute("CREATE OR REPLACE TABLE bronze_observations AS SELECT * FROM incoming")
     con.execute("""CREATE OR REPLACE TABLE silver_observations AS
         SELECT DISTINCT * FROM bronze_observations
@@ -106,6 +137,7 @@ def ingest(app_id: str | None = None, database: str | Path = "data/regional_insi
           MAX(unit) FILTER (WHERE indicator='population') AS population_unit,
           MAX(unit) FILTER (WHERE indicator='aging_rate') AS aging_rate_unit,
           MAX(source) AS source, MAX(stats_data_id) AS stats_data_id,
+          MAX(source_updated_date) AS source_updated_date,
           MAX(updated_at) AS updated_at
         FROM silver_observations GROUP BY prefecture_code, prefecture, year""")
     count = con.execute("SELECT count(*) FROM gold_regional_metrics").fetchone()[0]

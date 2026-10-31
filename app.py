@@ -36,5 +36,5 @@ if frame.population.notna().any():
     compare = frame[frame.prefecture.isin(selected)].dropna(subset=["population"])
     st.plotly_chart(px.line(compare, x="year", y="population", color="prefecture", markers=True, title="人口推移", labels={"year": "年", "population": "人口", "prefecture": "都道府県"}), use_container_width=True)
 st.subheader("データ情報")
-st.write(f"年次: {int(frame.year.min())}–{int(frame.year.max())} / 出典: {', '.join(frame.source.dropna().unique())} / 更新日: {', '.join(frame.updated_at.dropna().unique())}")
-st.caption("単位は統計表に記載された単位です。高齢化率はAPI応答に年齢階級別データが含まれない統計表では表示されません。")
+st.write(f"年次: {int(frame.year.min())}–{int(frame.year.max())} / 出典: {', '.join(frame.source.dropna().unique())} / 統計表ID: {', '.join(frame.stats_data_id.dropna().unique())} / 統計表更新日: {', '.join(frame.source_updated_date.dropna().unique())}")
+st.caption("人口の単位は統計表記載の千人、高齢化率は65歳以上人口÷総人口です。データ取得時刻: " + ', '.join(frame.updated_at.dropna().unique()))
