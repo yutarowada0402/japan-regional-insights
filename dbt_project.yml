@@ -1,0 +1,8 @@
+name: japan_regional_insights
+version: '1.0.0'
+config-version: 2
+profile: japan_regional_insights
+model-paths: [models]
+models:
+  japan_regional_insights:
+    +materialized: table

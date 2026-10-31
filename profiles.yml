@@ -1,0 +1,7 @@
+japan_regional_insights:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DATABASE_PATH', 'data/regional_insights.duckdb') }}"
+      schema: main
