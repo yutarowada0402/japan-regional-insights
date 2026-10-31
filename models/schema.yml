@@ -1,0 +1,15 @@
+version: 2
+sources:
+  - name: main
+    schema: main
+    tables:
+      - name: silver_observations
+models:
+  - name: gold_regional_metrics
+    columns:
+      - name: prefecture_code
+        data_tests: [not_null]
+      - name: prefecture
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]

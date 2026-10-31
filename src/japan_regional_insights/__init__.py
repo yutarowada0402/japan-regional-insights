@@ -1,0 +1,1 @@
+"""Japan Regional Insights application."""

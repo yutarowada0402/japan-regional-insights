@@ -1,0 +1,17 @@
+[project]
+name = "japan-regional-insights"
+version = "0.1.0"
+description = "Japan regional statistics explorer powered by e-Stat"
+requires-python = ">=3.11"
+dependencies = ["duckdb>=1.1", "dbt-duckdb>=1.9", "streamlit>=1.40", "plotly>=5.24", "requests>=2.32", "python-dotenv>=1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "ruff>=0.7"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+

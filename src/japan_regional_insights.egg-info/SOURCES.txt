@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+src/japan_regional_insights/__init__.py
+src/japan_regional_insights/etl.py
+src/japan_regional_insights.egg-info/PKG-INFO
+src/japan_regional_insights.egg-info/SOURCES.txt
+src/japan_regional_insights.egg-info/dependency_links.txt
+src/japan_regional_insights.egg-info/requires.txt
+src/japan_regional_insights.egg-info/top_level.txt
+tests/test_etl.py
