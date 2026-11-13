@@ -1,0 +1,29 @@
+name: "japan_regional_insights"
+version: "1.0.0"
+config-version: 2
+
+profile: "japan_regional_insights"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Bronze CSV location can be overridden (CI points it at a test fixture).
+vars:
+  bronze_csv_path: "{{ env_var('JRI_BRONZE_CSV', '../data/bronze/population_by_age_group.csv') }}"
+
+seeds:
+  japan_regional_insights:
+    +quote_columns: false
+
+models:
+  japan_regional_insights:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
