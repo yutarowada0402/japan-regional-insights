@@ -16,7 +16,7 @@ import streamlit as st
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLD_DIR = REPO_ROOT / "data" / "gold"
-ASSETS_DIR = REPO_ROOT / "assets"
+BOUNDARIES_DIR = REPO_ROOT / "assets" / "boundaries"
 
 st.set_page_config(page_title="Japan Regional Insights", layout="wide")
 
@@ -44,7 +44,7 @@ def load_boundaries() -> dict:
     their features are merged here.
     """
     features: list[dict] = []
-    for path in sorted(ASSETS_DIR.glob("japan-prefectures-*.geojson")):
+    for path in sorted(BOUNDARIES_DIR.glob("japan-prefectures-*.geojson")):
         features.extend(json.loads(path.read_text(encoding="utf-8"))["features"])
     if not features:
         return {}
@@ -55,7 +55,7 @@ def show_map(df: pd.DataFrame) -> None:
     st.subheader("⑤ コロプレスマップ")
     boundaries = load_boundaries()
     if not boundaries:
-        st.info("境界データ（assets/japan-prefectures-*.geojson）がありません。")
+        st.info("境界データ（assets/boundaries/japan-prefectures-*.geojson）がありません。")
         return
     metric_labels = {
         "aging_rate": "高齢化率（%）",
@@ -76,19 +76,64 @@ def show_map(df: pd.DataFrame) -> None:
         ]
     year = st.selectbox("年度", years, index=len(years) - 1, key="map_year")
     data = df[df["year"] == year].dropna(subset=[metric])
-    fig = px.choropleth(
-        data,
-        geojson=boundaries,
-        locations="region_code",
-        featureidkey="properties.PREF_CODE",
-        color=metric,
-        hover_name="region_name",
-        color_continuous_scale="YlOrRd" if metric == "aging_rate" else "Viridis",
-        labels={metric: metric_labels[metric]},
-        height=640,
+    # Draw prefecture polygons as filled cartesian scatters instead of
+    # Plotly's geo engine (which fetches topojson from a CDN at runtime).
+    import plotly.graph_objects as go
+    from plotly.colors import sample_colorscale
+
+    scale = "YlOrRd" if metric == "aging_rate" else "Viridis"
+    cmin, cmax = float(data[metric].min()), float(data[metric].max())
+    by_code = data.set_index("region_code")
+    fig = go.Figure()
+    for feature in boundaries["features"]:
+        code = feature["properties"]["PREF_CODE"]
+        if code not in by_code.index:
+            continue
+        row = by_code.loc[code]
+        t = (float(row[metric]) - cmin) / (cmax - cmin) if cmax > cmin else 0.5
+        fill = sample_colorscale(scale, [t])[0]
+        geom = feature["geometry"]
+        polys = [geom["coordinates"]] if geom["type"] == "Polygon" else geom["coordinates"]
+        for poly in polys:
+            ring = poly[0]
+            fig.add_trace(
+                go.Scatter(
+                    x=[pt[0] for pt in ring],
+                    y=[pt[1] for pt in ring],
+                    mode="lines",
+                    fill="toself",
+                    fillcolor=fill,
+                    line={"color": "#ffffff", "width": 0.5},
+                    hoveron="fills",
+                    text=f"{row['region_name']}<br>{metric_labels[metric]}: {row[metric]:,.2f}",
+                    hoverinfo="text",
+                    showlegend=False,
+                )
+            )
+    fig.add_trace(
+        go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker={
+                "colorscale": scale,
+                "cmin": cmin,
+                "cmax": cmax,
+                "color": [cmin],
+                "size": 0,
+                "showscale": True,
+                "colorbar": {"title": "人" if metric == "total_population" else "%"},
+            },
+            hoverinfo="skip",
+            showlegend=False,
+        )
     )
-    fig.update_geos(fitbounds="locations", visible=False)
-    fig.update_layout(margin={"l": 0, "r": 0, "t": 8, "b": 0})
+    fig.update_layout(
+        height=640,
+        margin={"l": 0, "r": 0, "t": 8, "b": 0},
+        xaxis={"visible": False},
+        yaxis={"visible": False, "scaleanchor": "x", "scaleratio": 1.22},
+    )
     st.plotly_chart(fig, use_container_width=True)
     st.caption("境界データ：国土数値情報（行政区域データ、国土交通省）を加工して作成。")
 
