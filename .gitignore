@@ -15,6 +15,9 @@ dbt/dbt_packages/
 # Bronze raw downloads (regenerable via the ingestion pipeline)
 data/bronze/raw/
 
+# Vendored at static-site build time (downloaded by build_static_site)
+docs/plotly.min.js
+
 # OS / editor
 .DS_Store
 .env
