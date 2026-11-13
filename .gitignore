@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# dbt / DuckDB working files
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+*.duckdb
+*.duckdb.wal
+
+# Bronze raw downloads (regenerable via the ingestion pipeline)
+data/bronze/raw/
+
+# OS / editor
+.DS_Store
+.env
