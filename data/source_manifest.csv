@@ -1,0 +1,5 @@
+source_id,statistics_name,provider,table_or_file,stats_data_id,target_years,reference_date,original_unit,url,retrieved_date,access_method,notes
+estat_api,人口推計,総務省統計局,都道府県・年齢（3区分）・男女別人口－総人口・日本人人口（各年10月1日現在）,0004021110,2016-2020,各年10月1日,千人,https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData,2026-11-13,e-Stat API（要ESTAT_APP_ID）,男女計・総人口・年齢（総数/65歳以上）を抽出。取得値480件（48地域×5年×2区分）
+estat_api,人口推計,総務省統計局,都道府県・年齢（3区分）・男女別人口－総人口・日本人人口,0003448225,2021-2024,各年10月1日,千人,https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData,2026-11-13,e-Stat API（要ESTAT_APP_ID）,男女計・総人口・年齢（総数/65歳以上）を抽出。取得値384件（48地域×4年×2区分）
+estat_api,人口推計,総務省統計局,都道府県・年齢（5歳階級）・男女別人口－総人口・日本人人口,0003448237,2020-2024,各年10月1日,千人,https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData,2026-11-13,e-Stat API getMetaInfoで実在を確認（本MVPでは未使用）,関連表として所在とメタデータを確認済み。今後の年齢構造分析用
+stat_file,人口推計,総務省統計局,各年10月1日現在 第3表「都道府県、年齢(3区分)、男女別人口－総人口」（Excel）,05k01-3.xlsx / 05k2021-3.xlsx / 05k2022-3.xlsx / 05k2023-3.xlsx / 05k2024-3.xlsx,2019;2021-2024,各年10月1日,千人,https://www.stat.go.jp/data/jinsui/,2026-11-13,公式サイトから直接ダウンロード,APIキーが無い場合のフォールバック経路。2024年ファイルでパース検証済み（47都道府県×2区分）。総人口は3区分の合計のため公表総数と最大1千人程度の丸め差が生じうる
