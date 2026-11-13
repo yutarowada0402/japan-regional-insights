@@ -6,7 +6,7 @@
 
 データエンジニアリングのポートフォリオとして、Python によるデータ取得、
 dbt + DuckDB によるデータモデリング（Medallion アーキテクチャ）、
-GitHub Actions による CI/CD、Streamlit による可視化を一貫して実装しています。
+GitHub Actions による CI/CD、静的HTML（GitHub Pages）／Streamlit による可視化を一貫して実装しています。
 
 ## 機能（MVP）
 
@@ -17,8 +17,8 @@ GitHub Actions による CI/CD、Streamlit による可視化を一貫して実�
    ※ 相関関係と因果関係は別物である旨の説明を画面上に明記しています
 5. **コロプレスマップ**（追加機能）— 高齢化率・人口増減率・総人口を地図で表示
    境界データは国土数値情報（行政区域データ、国土交通省）を加工した
-   `assets/japan-prefectures-{1,2}.geojson`（先行ブランチで作成された境界データを再利用し、
-   座標の丸め・小島嶼の省略・2ファイル分割による軽量化を施したもの）
+   `assets/boundaries/japan-prefectures-*.geojson`（先行ブランチで作成された境界データを再利用し、
+   座標の丸め・小島嶼の省略・複数ファイル分割による軽量化を施したもの）
 
 ## アーキテクチャ
 
@@ -94,6 +94,7 @@ dbt build --project-dir dbt --profiles-dir dbt   # JRI_BRONZE_CSV / JRI_DUCKDB_P
 - **データ更新**（`.github/workflows/data-update.yml`）: 月次スケジュール + 手動実行。
   取得 → Bronze → dbt 変換 → 検証 → Gold 生成を一時領域で行い、成功した場合のみ公開データを差し替えます。
   差分がある場合のみコミットします（`GITHUB_TOKEN` の push は他ワークフローを起動しないため無限ループになりません）。
+- **Pages デプロイ**（`.github/workflows/pages.yml`）: main への push + 手動実行で、データ再生成 → 静的サイト生成 → GitHub Pages へデプロイします。
 
 ### ESTAT_APP_ID について
 
@@ -102,12 +103,35 @@ dbt build --project-dir dbt --profiles-dir dbt   # JRI_BRONZE_CSV / JRI_DUCKDB_P
 - 未登録の場合は自動的に公式 Excel 経路にフォールバックします。
 - ローカルでも環境変数未設定なら Excel 経路で動作します。キーをコードやリポジトリに含めることはありません。
 
-## Streamlit Community Cloud へのデプロイ
+## デプロイ（公開）
 
-1. [Streamlit Community Cloud](https://share.streamlit.io/) で本リポジトリを選択。
-2. Main file path に `app/streamlit_app.py` を指定して Deploy。
-3. アプリはリポジトリ内の `data/gold/prefecture_year.parquet`（無ければ `.csv`）を読むため、
-   追加のシークレット設定なしで動作します（データは data-update ワークフローがコミットしたものを使用）。
+**公開は GitHub Pages（静的HTML）を第一とします。** Streamlit版はローカル実行用です。
+
+### GitHub Pages（静的HTML版）
+
+Goldデータから自己完結した静的サイトを生成し、`docs/` に出力します
+（データと境界GeoJSONを埋め込み、描画はブラウザ側の Plotly.js。年度・地域フィルターもブラウザ上で動作）。
+
+```bash
+python -m src.processing.build_static_site   # docs/index.html を生成
+```
+
+公開手順:
+
+1. リポジトリの Settings → Pages → Build and deployment → Source で **GitHub Actions** を選択（初回のみ、リポジトリ所有者が実施）。
+2. `.github/workflows/pages.yml` が main への push（または手動実行）で、データ再生成 → 静的サイト生成 → Pages へデプロイを行います。
+3. 公開URLは `https://yutarowada0402.github.io/japan-regional-insights/` です。
+
+ローカル確認は `docs/index.html` をブラウザで開くだけで可能です（Plotly.js は CDN 読込、失敗時は同梱の `docs/plotly.min.js` にフォールバック）。
+
+### Streamlit版（ローカル実行用）
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+アプリはリポジトリ内の `data/gold/prefecture_year.parquet`（無ければ `.csv`）を読みます。
+静的版と同じ5ビュー（KPI・ランキング・推移・比較・相関・地図）を備えます。
 
 ## ディレクトリ構成
 
@@ -116,6 +140,7 @@ dbt build --project-dir dbt --profiles-dir dbt   # JRI_BRONZE_CSV / JRI_DUCKDB_P
 ├── src/ingestion/              # データ取得（e-Stat API / 公式Excel）
 ├── src/processing/             # 変換ヘルパーとビルド統括
 ├── dbt/                        # dbt プロジェクト（staging / marts / seeds / tests）
+├── docs/                       # GitHub Pages 用の静的サイト（生成物）
 ├── data/
 │   ├── bronze/                 # 生データ（CSV）
 │   ├── silver/                 # Silver 層（Parquet + CSV）
