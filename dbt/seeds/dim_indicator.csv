@@ -1,0 +1,5 @@
+indicator_code,indicator_name,unit,description
+total_population,総人口,人,各年10月1日現在の総人口（年齢総数）
+elderly_population,高齢者人口（65歳以上）,人,各年10月1日現在の65歳以上人口
+population_change_rate,人口増減率,%,総人口の前年比増減率（Gold層で算出）
+aging_rate,高齢化率,%,総人口に占める65歳以上人口の割合（Gold層で算出）
