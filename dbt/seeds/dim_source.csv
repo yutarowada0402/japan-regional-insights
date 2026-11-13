@@ -1,0 +1,3 @@
+source_id,source_name,provider,url,note
+estat_api,人口推計（e-Stat API）,総務省統計局,https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData,統計表ID 0004021110（2016-2020）・0003448225（2021-2024）。要ESTAT_APP_ID
+stat_file,人口推計 各年10月1日現在 第3表（Excel）,総務省統計局,https://www.stat.go.jp/data/jinsui/,都道府県・年齢(3区分)・男女別人口。APIキーが無い場合のフォールバック経路
