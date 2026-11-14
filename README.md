@@ -1,5 +1,11 @@
 # Japan Regional Insights
 
+[公開ダッシュボードを見る](https://yutarowada0402.github.io/japan-regional-insights/) · [CI の実行結果](https://github.com/yutarowada0402/japan-regional-insights/actions/workflows/ci.yml)
+
+[![CI](https://github.com/yutarowada0402/japan-regional-insights/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yutarowada0402/japan-regional-insights/actions/workflows/ci.yml)
+
+![都道府県別人口統計ダッシュボードの画面](assets/dashboard-preview.png)
+
 日本の都道府県別人口統計を分析・可視化するWebアプリケーションです。
 政府のオープンデータ（総務省統計局「人口推計」）を使い、人口増減率ランキング、
 人口推移、地域比較、高齢化率との相関をインタラクティブに確認できます。
@@ -22,16 +28,17 @@ GitHub Actions による CI/CD、静的HTML（GitHub Pages）／Streamlit によ
 
 ## アーキテクチャ
 
+```mermaid
+flowchart LR
+    Sources["人口推計：e-Stat API / 公式Excel"] --> Bronze["Bronze：原値CSV・出典情報"]
+    Bronze --> dbt["dbt + DuckDB：変換・品質検証"]
+    dbt --> Data["Silver / Gold：Parquet・CSV"]
+    Data --> Static["Python：静的サイト生成"]
+    Static --> Pages["GitHub Pages：公開ダッシュボード"]
+    Data --> Streamlit["Streamlit：ローカル分析"]
 ```
-┌─────────────────┐   ┌──────────────────┐   ┌────────────────────┐   ┌────────────────┐
-│  Sources        │   │  Bronze          │   │  Silver / Gold     │   │  App           │
-│  人口推計        │──▶│  data/bronze/    │──▶│  dbt (dbt-duckdb)  │──▶│  Streamlit     │
-│  ・e-Stat API    │   │  生データ(CSV)   │   │  data/silver/      │   │  app/          │
-│  ・公式Excel     │   │  + 取得メタ情報  │   │  data/gold/        │   │  prefecture_   │
-│   (フォールバック)│   │                  │   │  Parquet + CSV     │   │  year を読込   │
-└─────────────────┘   └──────────────────┘   └────────────────────┘   └────────────────┘
-        src/ingestion/                          dbt/models/               app/streamlit_app.py
-```
+
+GitHub Actions が CI、毎月のデータ取得・検証・コミット、静的サイトの生成・公開を実行します。
 
 - **Bronze**: API/Excel から取得した生データ（千人単位の原値）と出典情報を保持。再処理可能。
 - **Silver**（dbt staging）: 都道府県コード統一（`01000` → `01`）、型変換、人単位への換算、重複排除。
@@ -47,7 +54,7 @@ GitHub Actions による CI/CD、静的HTML（GitHub Pages）／Streamlit によ
 | 統計名 | 人口推計（政府統計コード 00200524） |
 | 提供機関 | 総務省統計局 |
 | 対象 | 都道府県・年齢（3区分）・男女別人口（総人口）、各年10月1日現在 |
-| 対象年度 | 2016〜2024年（47都道府県 × 9年） |
+| 対象年度 | API 経路：2016〜2024年（9年分）。Excel 経路：2019・2021〜2024年（5年分）。各年47都道府県 |
 | 原単位 | 千人（パイプラインで人単位に換算） |
 | 取得経路1（主） | e-Stat API: 統計表ID `0004021110`（2016〜2020）、`0003448225`（2021〜2024） |
 | 取得経路2（予備） | 統計局サイトの公表 Excel（各年 第3表、2019・2021〜2024年分） |
@@ -55,29 +62,44 @@ GitHub Actions による CI/CD、静的HTML（GitHub Pages）／Streamlit によ
 
 詳細な出典記録は [`data/source_manifest.csv`](data/source_manifest.csv) を参照してください。
 
+現在の公開データは Excel 経路で取得した **2019・2021〜2024年（235行）** です。
+2020年は含まれていません。取得経路の切り替えはデータの追加ではなく、取得対象全体の置き換えになります。
+対象年は [`src/ingestion/sources.py`](src/ingestion/sources.py) で定義しているため、月次更新で新しい年度が自動追加されるわけではありません。
+
 注意点:
-- 人口増減率はデータ開始年（2016年）については前年データが無いため算出されません（補完しません）。
+
+- 人口増減率は、同じ都道府県の直前の暦年の人口がある場合だけ算出します。初年度や欠年の翌年は空欄とし、補完しません。現在の公開データでは2019年・2021年が空欄です。
 - Excel 経路の総人口は年齢3区分の合計のため、公表総数と最大1千人程度の丸め差が生じます。
 
 ## ローカル実行手順
 
-前提: Python 3.12+
+前提: Python 3.12+、Git。以下は bash / zsh 向けの手順です。
+
+```bash
+git clone https://github.com/yutarowada0402/japan-regional-insights.git
+cd japan-regional-insights
+```
+
+コミット済みの公的統計データから起動する場合、API キーやデータの再取得は不要です。
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 1) データ取得（Bronze）
-#    ESTAT_APP_ID があれば e-Stat API、無ければ公式Excelから取得します
-export ESTAT_APP_ID=<your e-Stat application ID>   # 任意
-python -m src.ingestion.download
-
-# 2) dbt 変換 + Gold/Silver の Parquet・CSV 生成
+# 1) コミット済み Bronze から Gold/Silver の Parquet・CSV を生成
 python -m src.processing.build_dataset
 
-# 3) アプリ起動
+# 2) アプリ起動
 streamlit run app/streamlit_app.py
+```
+
+データを再取得する場合は、次のコマンドの後に `build_dataset` を再実行します。
+
+```bash
+# キー未設定なら公式 Excel 経路。キーを使う場合のみ次のコメントを外します。
+# export ESTAT_APP_ID='実際の e-Stat アプリケーションID'
+python -m src.ingestion.download
 ```
 
 テスト:
@@ -85,13 +107,14 @@ streamlit run app/streamlit_app.py
 ```bash
 pytest -q
 ruff check src app tests
-dbt build --project-dir dbt --profiles-dir dbt   # JRI_BRONZE_CSV / JRI_DUCKDB_PATH は build_dataset 経由が簡単です
+# パスを自動設定し、実データで dbt build とエクスポートを検証
+python -m src.processing.build_dataset
 ```
 
 ## CI/CD（GitHub Actions）
 
 - **CI**（`.github/workflows/ci.yml`）: Pull Request・main push・手動実行で ruff、pytest、dbt build（テスト用フィクスチャ使用）を実行。
-- **データ更新**（`.github/workflows/data-update.yml`）: 月次スケジュール + 手動実行。
+- **データ更新**（`.github/workflows/data-update.yml`）: 毎月2日06:17 JST + 手動実行。
   取得 → Bronze → dbt 変換 → 検証 → Gold 生成を一時領域で行い、成功した場合のみ公開データを差し替えます。
   差分がある場合のみコミットします（`GITHUB_TOKEN` の push は他ワークフローを起動しないため無限ループになりません）。
 - **Pages デプロイ**（`.github/workflows/pages.yml`）: main への push・手動実行・月次データ更新成功時に、データ再生成 → 静的サイト生成 → GitHub Pages へデプロイします。
@@ -131,11 +154,12 @@ streamlit run app/streamlit_app.py
 ```
 
 アプリはリポジトリ内の `data/gold/prefecture_year.parquet`（無ければ `.csv`）を読みます。
-静的版と同じ5ビュー（KPI・ランキング・推移・比較・相関・地図）を備えます。
+静的版と同じ5つの分析ビュー（ランキング・推移・比較・相関・地図）と KPI を備えます。
 
 ## ディレクトリ構成
 
 ```
+├── assets/                    # 地図境界データ・README 用スクリーンショット
 ├── app/streamlit_app.py        # Streamlit ダッシュボード
 ├── src/ingestion/              # データ取得（e-Stat API / 公式Excel）
 ├── src/processing/             # 変換ヘルパーとビルド統括
@@ -147,7 +171,7 @@ streamlit run app/streamlit_app.py
 │   ├── gold/                   # Gold 層（Parquet + CSV）※アプリの参照先
 │   └── source_manifest.csv     # 出典マニフェスト
 ├── tests/                      # pytest（変換ロジック、パーサー、アプリ起動確認）
-└── .github/workflows/          # CI / データ更新
+└── .github/workflows/          # CI / データ更新 / Pages 公開
 ```
 
 ## ライセンス
