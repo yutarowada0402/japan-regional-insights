@@ -90,11 +90,11 @@ dbt build --project-dir dbt --profiles-dir dbt   # JRI_BRONZE_CSV / JRI_DUCKDB_P
 
 ## CI/CD（GitHub Actions）
 
-- **CI**（`.github/workflows/ci.yml`）: Pull Request 時に ruff、pytest、dbt build（テスト用フィクスチャ使用）を実行。
+- **CI**（`.github/workflows/ci.yml`）: Pull Request・main push・手動実行で ruff、pytest、dbt build（テスト用フィクスチャ使用）を実行。
 - **データ更新**（`.github/workflows/data-update.yml`）: 月次スケジュール + 手動実行。
   取得 → Bronze → dbt 変換 → 検証 → Gold 生成を一時領域で行い、成功した場合のみ公開データを差し替えます。
   差分がある場合のみコミットします（`GITHUB_TOKEN` の push は他ワークフローを起動しないため無限ループになりません）。
-- **Pages デプロイ**（`.github/workflows/pages.yml`）: main への push + 手動実行で、データ再生成 → 静的サイト生成 → GitHub Pages へデプロイします。
+- **Pages デプロイ**（`.github/workflows/pages.yml`）: main への push・手動実行・月次データ更新成功時に、データ再生成 → 静的サイト生成 → GitHub Pages へデプロイします。
 
 ### ESTAT_APP_ID について
 
@@ -119,7 +119,7 @@ python -m src.processing.build_static_site   # docs/index.html を生成
 公開手順:
 
 1. リポジトリの Settings → Pages → Build and deployment → Source で **GitHub Actions** を選択（初回のみ、リポジトリ所有者が実施）。
-2. `.github/workflows/pages.yml` が main への push（または手動実行）で、データ再生成 → 静的サイト生成 → Pages へデプロイを行います。
+2. `.github/workflows/pages.yml` が main への push・手動実行・月次データ更新成功時に、データ再生成 → 静的サイト生成 → Pages へデプロイを行います。
 3. 公開URLは `https://yutarowada0402.github.io/japan-regional-insights/` です。
 
 ローカル確認は `docs/index.html` をブラウザで開くだけで可能です（Plotly.js は CDN 読込、失敗時は同梱の `docs/plotly.min.js` にフォールバック）。
