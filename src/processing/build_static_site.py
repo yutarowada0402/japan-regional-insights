@@ -78,7 +78,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <select id="trendPref"></select>
     <div id="trendChart" class="chart"></div>
     <div id="trendTable"></div>
-    <p class="sub">人口増減率は初年度（データ開始年）については前年データが無いため空欄です。</p>
+    <p class="sub">人口増減率は前年のデータがない年度（初年度・欠年の翌年）は空欄です。欠年の値は補完していません。</p>
   </section>
 
   <section>

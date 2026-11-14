@@ -1,6 +1,5 @@
 -- Gold (wide format): dashboard-ready prefecture x year indicators.
--- population_change_rate is NULL for the first year of the dataset
--- (no previous year available); it is never back-filled or fabricated.
+-- Only compare consecutive calendar years. Missing years are not back-filled.
 with pivoted as (
     select
         region_code,
@@ -17,11 +16,12 @@ with pivoted as (
 
 with_previous as (
     select
-        *,
-        lag(total_population) over (
-            partition by region_code order by year
-        ) as prev_year_population
-    from pivoted
+        current_year.*,
+        previous_year.total_population as prev_year_population
+    from pivoted current_year
+    left join pivoted previous_year
+        on current_year.region_code = previous_year.region_code
+        and previous_year.year = current_year.year - 1
 )
 
 select
