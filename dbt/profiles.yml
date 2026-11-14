@@ -1,0 +1,8 @@
+japan_regional_insights:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Absolute path is injected by src/processing/build_dataset.py and CI.
+      path: "{{ env_var('JRI_DUCKDB_PATH', 'data/jri.duckdb') }}"
+      threads: 4

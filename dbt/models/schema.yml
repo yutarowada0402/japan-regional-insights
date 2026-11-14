@@ -1,0 +1,77 @@
+version: 2
+
+seeds:
+  - name: dim_region
+    columns:
+      - name: region_code
+        tests: [not_null, unique]
+      - name: region_name
+        tests: [not_null]
+
+models:
+  - name: stg_population_by_age_group
+    description: Silver - prefecture/year/age-group population in persons.
+    columns:
+      - name: region_code
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_region')
+                field: region_code
+      - name: year
+        tests: [not_null]
+      - name: age_group
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["total", "elderly_65plus"]
+      - name: value_persons
+        tests: [not_null]
+
+  - name: fact_regional_indicator
+    description: Gold long-format fact table (region x year x indicator).
+    columns:
+      - name: region_code
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_region')
+                field: region_code
+      - name: year
+        tests: [not_null]
+      - name: indicator_code
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["total_population", "elderly_population"]
+          - relationships:
+              arguments:
+                to: ref('dim_indicator')
+                field: indicator_code
+      - name: value
+        tests: [not_null]
+      - name: source_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_source')
+                field: source_id
+
+  - name: gold_prefecture_year
+    description: Gold wide-format dashboard table with derived rates.
+    columns:
+      - name: region_code
+        tests: [not_null]
+      - name: year
+        tests: [not_null]
+      - name: total_population
+        tests: [not_null]
+      - name: elderly_population
+        tests: [not_null]
+      - name: aging_rate
+        tests: [not_null]
